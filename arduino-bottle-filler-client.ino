@@ -2,26 +2,28 @@
 #include <SevenSegmentTM1637.h>
 #include <SevenSegmentExtended.h>
 
-char versionText[] = "MQTT Bottle Feeder Client v0.9.0";
-
-// WIFI ----------------------------------------
+char versionText[] = "MQTT Bottle Feeder Client v1.0.0";
 
 #define FEEDBOTTLE_FEED  "/dev/bottleFeed"
+#define HHmm_FEED        "/dev/HHmm"
+
+#define BOTTLE_FEED_EV  '1'
+#define DELETE_FEED_EV  '2'
 
 #define WIFI_OTA_NAME   "arduino-bottle-filler-client"
 #define WIFI_HOSTNAME   "arduino-bottle-filler-client"
 
-MyWifiHelper wifiHelper(WIFI_HOSTNAME);
-
-// Clock ----------------------------------------
-
 #define MED_BRIGHT      30
 #define LOW_BRIGHT      15
 
-char TimeDisp[] = "--:--";
-
 #define CLK 0
 #define DIO 2
+
+// WIFI ----------------------------------------
+
+MyWifiHelper wifiHelper(WIFI_HOSTNAME);
+
+// Clock ----------------------------------------
 
 SevenSegmentExtended sevenSeg(CLK,DIO);
 
@@ -34,15 +36,24 @@ volatile bool callback_event;
 
 void bottlefeed_callback(byte* payload, unsigned int length) {
 
-	if (payload[0] == '-') {
-		hour = -1;
-	} else {
-	    hour = (payload[0]-'0') * 10;
-	    hour += payload[1]-'0';
-	    minute = (payload[3]-'0') * 10;
-	    minute += payload[4]-'0';
-	}
-	callback_event = true;
+    if (payload[0] == BOTTLE_FEED_EV) {
+        sevenSegDisplayTime();
+    } else if (payload[0] == DELETE_FEED_EV) {
+        clearTimeDisp();
+        sevenSeg.print("----");
+    }
+}
+
+void devtime_callback(byte* payload, unsigned int length) {
+
+    if (payload[0] == '-') {
+        hour = -1;
+    } else {
+        hour = (payload[0]-'0') * 10;
+        hour += payload[1]-'0';
+        minute = (payload[3]-'0') * 10;
+        minute += payload[4]-'0';
+    }
 }
 
 // ----------------------------------------------
@@ -63,6 +74,7 @@ void setup()
     wifiHelper.setupMqtt();
 
     wifiHelper.mqttAddSubscription(FEEDBOTTLE_FEED, bottlefeed_callback);
+    wifiHelper.mqttAddSubscription(HHmm_FEED, devtime_callback);
 }
 
 void loop()
@@ -71,28 +83,12 @@ void loop()
 
     ArduinoOTA.handle();
 
-    if (callback_event) {
-    	if (hour >= 0) {
-    		sevenSegDisplayTime();
-    	} else {
-			clearTimeDisp();
-	    	sevenSeg.print("----");
-    	}
-    	Serial.println("callback!");
-    	callback_event = false;
-    }
-
     delay(10);
 }
 
 //------------------------------------------------------------------
 
 void clearTimeDisp() {
-    TimeDisp[0] = '-';
-    TimeDisp[1] = '-';
-    TimeDisp[2] = ':';
-    TimeDisp[3] = '-';
-    TimeDisp[4] = '-';
 }
 
 void sevenSegClear() {
