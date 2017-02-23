@@ -2,13 +2,13 @@
 #include <SevenSegmentTM1637.h>
 #include <SevenSegmentExtended.h>
 
-char versionText[] = "MQTT Bottle Feeder Client v1.0.0";
+char versionText[] = "MQTT Bottle Feeder Client v1.0.1";
 
 #define FEEDBOTTLE_FEED  "/dev/bottleFeed"
 #define HHmm_FEED        "/dev/HHmm"
 
-#define BOTTLE_FEED_EV  '1'
-#define DELETE_FEED_EV  '2'
+#define BOTTLE_FEED_TRIGGER_EV  '1'
+#define BOTTLE_FEED_IGNORE_EV  '2'
 
 #define WIFI_OTA_NAME   "arduino-bottle-filler-client"
 #define WIFI_HOSTNAME   "arduino-bottle-filler-client"
@@ -36,9 +36,9 @@ volatile bool callback_event;
 
 void bottlefeed_callback(byte* payload, unsigned int length) {
 
-    if (payload[0] == BOTTLE_FEED_EV) {
+    if (payload[0] == BOTTLE_FEED_TRIGGER_EV) {
         sevenSegDisplayTime();
-    } else if (payload[0] == DELETE_FEED_EV) {
+    } else if (payload[0] == BOTTLE_FEED_IGNORE_EV) {
         clearTimeDisp();
         sevenSeg.print("----");
     }
@@ -53,6 +53,10 @@ void devtime_callback(byte* payload, unsigned int length) {
         hour += payload[1]-'0';
         minute = (payload[3]-'0') * 10;
         minute += payload[4]-'0';
+    }
+
+    if ((hour >= 6 && minute == 0) && (hour <= 18 && minute == 0)) {
+        sevenSegClear();
     }
 }
 
