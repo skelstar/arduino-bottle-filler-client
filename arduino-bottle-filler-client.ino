@@ -5,20 +5,19 @@
 
 char versionText[] = "MQTT Bottle Feeder Client v1.1.0";
 
-#define FEEDBOTTLE_FEED  "/dev/bottleFeed"
-#define HHmm_FEED        "/dev/HHmm"
-#define MQTT_EVENT_TIMESTAMP    "/dev/timestamp"
+#define FEEDBOTTLE_FEED "/dev/bottleFeed"
+//#define HHmm_FEED        "/dev/HHmm"
+#define MQTT_EVENT_TIMESTAMP "/dev/timestamp"
 
+#define BOTTLE_FEED_TRIGGER_EV '1'
+#define BOTTLE_FEED_IGNORE_EV '2'
 
-#define BOTTLE_FEED_TRIGGER_EV  '1'
-#define BOTTLE_FEED_IGNORE_EV  '2'
+#define WIFI_OTA_NAME "arduino-bottle-filler-client"
+#define WIFI_HOSTNAME "arduino-bottle-filler-client"
 
-#define WIFI_OTA_NAME   "arduino-bottle-filler-client"
-#define WIFI_HOSTNAME   "arduino-bottle-filler-client"
-
-#define MED_BRIGHT      30
-#define LOW_BRIGHT      15
-#define BLINK           true
+// #define MED_BRIGHT      30
+#define LOW_BRIGHT 10
+#define BLINK true
 
 #define CLK 0
 #define DIO 2
@@ -31,25 +30,31 @@ MyWifiHelper wifiHelper(WIFI_HOSTNAME);
 
 // Clock ----------------------------------------
 
-SevenSegmentExtended sevenSeg(CLK,DIO);
+SevenSegmentExtended sevenSeg(CLK, DIO);
 // http://playground.arduino.cc/Main/SevenSegmentLibrary
 
 // ----------------------------------------------
 
-void mqttcallback_Bottlefeed(byte* payload, unsigned int length) {
+void mqttcallback_Bottlefeed(byte *payload, unsigned int length)
+{
 
-    if (payload[0] == BOTTLE_FEED_TRIGGER_EV) {
+    if (payload[0] == BOTTLE_FEED_TRIGGER_EV)
+    {
         sevenSegDisplayTime();
-    } else if (payload[0] == BOTTLE_FEED_IGNORE_EV) {
+    }
+    else if (payload[0] == BOTTLE_FEED_IGNORE_EV)
+    {
         sevenSeg.print("----");
     }
 }
 
-void mqttcallback_Timestamp(byte* payload, unsigned int length) {
-    unsigned long pctime = strtoul((char*)payload, NULL, 10);
+void mqttcallback_Timestamp(byte *payload, unsigned int length)
+{
+    unsigned long pctime = strtoul((char *)payload, NULL, 10);
     setTime(pctime);
 
-    if (hour() == 12) {
+    if (hour() == 12)
+    {
         sevenSegClear();
     }
 }
@@ -58,13 +63,13 @@ void mqttcallback_Timestamp(byte* payload, unsigned int length) {
 
 void setup()
 {
-	Serial.begin(9600);
-	delay(50);
-	Serial.println("Booting");
-	Serial.println(versionText);
+    Serial.begin(9600);
+    delay(50);
+    Serial.println("Booting");
+    Serial.println(versionText);
 
-	sevenSeg.begin();
-	sevenSegClear();
+    sevenSeg.begin();
+    sevenSegClear();
 
     wifiHelper.setupWifi();
     wifiHelper.setupOTA(WIFI_OTA_NAME);
@@ -86,20 +91,22 @@ void loop()
 
 //------------------------------------------------------------------
 
-void sevenSegClear() {
-    if (hour() > 19 && hour() < 7) {
-        sevenSeg.setBacklight(LOW_BRIGHT);
-    } else {
-        sevenSeg.setBacklight(MED_BRIGHT);
-    }
+void sevenSegClear()
+{
+    sevenSeg.setBacklight(LOW_BRIGHT);
     sevenSeg.print("----");
 }
 
-void sevenSegDisplayTime() {
-    if (hour() > 19 && hour() < 7) {
-        sevenSeg.setBacklight(LOW_BRIGHT);
-    } else {
-        sevenSeg.setBacklight(MED_BRIGHT);
+void sevenSegDisplayTime()
+{
+    sevenSeg.setBacklight(LOW_BRIGHT);
+
+    int hour12 = hour() > 12 ? hour() - 12 : hour();
+
+    sevenSeg.printTime(hour12, minute(), BLINK);
+    // blank leading zero
+    if (hour12 < 10)
+    {
+        sevenSeg.printRaw(sevenSeg.encode(' '), 0);
     }
-    sevenSeg.printTime(hour(), minute(), BLINK);
 }
