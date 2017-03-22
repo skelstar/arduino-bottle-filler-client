@@ -2,6 +2,7 @@
 #include <SevenSegmentTM1637.h>
 #include <SevenSegmentExtended.h>
 #include <TimeLib.h>
+#include <Adafruit_NeoPixel.h>
 
 char versionText[] = "MQTT Bottle Feeder Client v1.1.0";
 
@@ -19,8 +20,11 @@ char versionText[] = "MQTT Bottle Feeder Client v1.1.0";
 #define LOW_BRIGHT 10
 #define BLINK true
 
-#define CLK 0
-#define DIO 2
+#define CLK         0
+#define DIO         2
+#define PIXEL_PIN   0
+
+#define NUM_PIXELS  1
 
 bool DEBUG = false;
 
@@ -32,6 +36,10 @@ MyWifiHelper wifiHelper(WIFI_HOSTNAME);
 
 SevenSegmentExtended sevenSeg(CLK, DIO);
 // http://playground.arduino.cc/Main/SevenSegmentLibrary
+
+// Pixel -----------------------------------------
+
+Adafruit_NeoPixel pixel = Adafruit_NeoPixel(NUM_PIXELS, PIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
 // ----------------------------------------------
 
@@ -70,6 +78,8 @@ void setup()
 
     sevenSeg.begin();
     sevenSegClear();
+
+    pixel.begin();
 
     wifiHelper.setupWifi();
     wifiHelper.setupOTA(WIFI_OTA_NAME);
