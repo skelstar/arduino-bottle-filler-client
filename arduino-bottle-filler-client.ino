@@ -3,6 +3,7 @@
 #include <SevenSegmentExtended.h>
 #include <TimeLib.h>
 #include <Adafruit_NeoPixel.h>
+#include <TaskScheduler.h>
 #include <ArduinoJson.h>            // https://github.com/bblanchon/ArduinoJson
 
 char versionText[] = "MQTT Bottle Feeder Client v2.0";
@@ -44,20 +45,47 @@ Adafruit_NeoPixel pixel = Adafruit_NeoPixel(NUM_PIXELS, PIXEL_PIN, NEO_GRB + NEO
 
 uint32_t COLOUR_OFF = pixel.Color(0, 0, 0);
 
+uint32_t currentPixelColor = pixel.Color(0, 0, 0);
+
+/*---------------------------------------------------------------------*/
+
+Scheduler runner;
+
+void tCallback_FlashTriggerLEDON();
+void tCallback_FlashTriggerLEDOFF();
+
+Task tFlashTriggerLED(500, 
+                      TASK_FOREVER, 
+                      &tCallback_FlashTriggerLEDON, 
+                      &runner, 
+                      false);
+
+void tCallback_FlashTriggerLEDON() {
+    pixel.begin();
+    pixel.setPixelColor(0, currentPixelColor);
+    pixel.show();
+    tFlashTriggerLED.setCallback(tCallback_FlashTriggerLEDOFF);
+}
+
+void tCallback_FlashTriggerLEDOFF() {
+    pixel.begin();
+    pixel.setPixelColor(0, COLOUR_OFF);
+    pixel.show();
+    tFlashTriggerLED.setCallback(tCallback_FlashTriggerLEDON);
+}
+
 // ----------------------------------------------
 
 void mqttcallback_Bottlefeed(byte *payload, unsigned int length) {
 
-    if (payload[0] == BOTTLE_FEED_TRIGGER_EV)
-    {
+    if (payload[0] == BOTTLE_FEED_TRIGGER_EV) {
         sevenSegDisplayTime();
 
         pixel.begin();
         pixel.setPixelColor(0, COLOUR_OFF);
         pixel.show();
     }
-    else if (payload[0] == BOTTLE_FEED_IGNORE_EV)
-    {
+    else if (payload[0] == BOTTLE_FEED_IGNORE_EV) {
         sevenSeg.print("----");
     }
 }
@@ -71,7 +99,7 @@ void mqttcallback_Timestamp(byte *payload, unsigned int length) {
     }
 }
 
-void mqttcallback_TempLevel(byte *payload, unsigned int length) {
+void mqttcallback_PixelState(byte *payload, unsigned int length) {
 
     StaticJsonBuffer<200> jsonBuffer;
 
@@ -94,8 +122,16 @@ void mqttcallback_TempLevel(byte *payload, unsigned int length) {
     Serial.print("flash: "); Serial.println(flash);
     Serial.print("level: "); Serial.println(level);
 
+    currentPixelColor = pixel.Color(colourRed, colourGrn, colourBlu);
+
+    if (flash) {
+        tFlashTriggerLED.restart();
+    } else {
+        tFlashTriggerLED.disable();
+    }
+
     pixel.begin();
-    pixel.setPixelColor(0, pixel.Color(colourRed, colourGrn, colourBlu));
+    pixel.setPixelColor(0, currentPixelColor);
     pixel.show();
 }
 
@@ -122,8 +158,10 @@ void setup()
 
     wifiHelper.mqttAddSubscription(TOPIC_FEEDBOTTLE, mqttcallback_Bottlefeed);
     wifiHelper.mqttAddSubscription(TOPIC_TIMESTAMP, mqttcallback_Timestamp);
-    wifiHelper.mqttAddSubscription(TOPIC_TEMP_LIAM_ROOM_LEVEL, mqttcallback_TempLevel);
-    wifiHelper.mqttAddSubscription(TOPIC_TEMP_LIAM_ROOM_LEVEL, mqttcallback_TempLevel);
+    wifiHelper.mqttAddSubscription(TOPIC_TEMP_LIAM_ROOM_LEVEL, mqttcallback_PixelState);
+    wifiHelper.mqttAddSubscription(TOPIC_TEMP_LIAM_ROOM_LEVEL, mqttcallback_PixelState);
+
+    runner.addTask(tFlashTriggerLED);
 }
 
 void loop()
@@ -131,6 +169,8 @@ void loop()
     wifiHelper.loopMqttNonBlocking();
 
     ArduinoOTA.handle();
+
+    runner.execute();
 
     delay(10);
 }
