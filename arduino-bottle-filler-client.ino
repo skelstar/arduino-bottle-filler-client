@@ -42,19 +42,7 @@ SevenSegmentExtended sevenSeg(CLK, DIO);
 
 Adafruit_NeoPixel pixel = Adafruit_NeoPixel(NUM_PIXELS, PIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
-#define LEVEL_OFF   0
-#define LEVEL_COLD  1
-#define LEVEL_COOL  2
-#define LEVEL_OK    3
-#define LEVEL_WARM  4
-#define LEVEL_HOT   5
-
 uint32_t COLOUR_OFF = pixel.Color(0, 0, 0);
-uint32_t COLOUR_COLD = pixel.Color(0, 0, 2);
-uint32_t COLOUR_COOL = pixel.Color(0, 0, 1);
-uint32_t COLOUR_OK = pixel.Color(0, 1, 0);
-uint32_t COLOUR_WARM = pixel.Color(1, 0, 0);
-uint32_t COLOUR_HOT = pixel.Color(2, 0, 0);
 
 // ----------------------------------------------
 
