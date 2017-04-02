@@ -1,5 +1,7 @@
 #include <myWifiHelper.h>
 #include <ArduinoJson.h>            // https://github.com/bblanchon/ArduinoJson
+#include <TimeLib.h>
+
 
 #define WIFI_HOSTNAME "home-bedroom-client"
 
@@ -9,9 +11,28 @@
 MyWifiHelper wifiHelper(WIFI_HOSTNAME);
 
 void mqttcallback_Timestamp(byte *payload, unsigned int length) {
-    // unsigned long pctime = strtoul((char *)payload, NULL, 10);
-    // setTime(pctime);
-    Serial.println("timestamp");
+    unsigned long pctime = strtoul((char *)payload, NULL, 10);
+    setTime(pctime);
+    //Serial.print("timestamp: "); Serial.print(hour()); Serial.println(minute());
+}
+
+void mqttcallback_Command(byte *payload, unsigned int length) {
+
+    StaticJsonBuffer<50> jsonBuffer;
+
+    JsonObject& root = jsonBuffer.parseObject(payload);
+
+    if (!root.success()) {
+        Serial.println("parseObject() failed");
+    }
+
+    const char* command = root["command"];
+    const char* value = root["value"];
+
+    root.printTo(Serial);
+
+    Serial.print("command: "); Serial.println(command);
+    Serial.print("value: "); Serial.println(value);
 }
 
 
@@ -26,6 +47,7 @@ void setup() {
     wifiHelper.setupMqtt();
 
     wifiHelper.mqttAddSubscription(TOPIC_TIMESTAMP, mqttcallback_Timestamp);
+    wifiHelper.mqttAddSubscription(TOPIC_COMMAND, mqttcallback_Command);
 }
 
 void loop() {
