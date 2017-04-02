@@ -1,15 +1,18 @@
 #include <myWifiHelper.h>
 #include <ArduinoJson.h>            // https://github.com/bblanchon/ArduinoJson
+#include <Adafruit_NeoPixel.h>
 #include <SevenSegmentTM1637.h>
 #include <SevenSegmentExtended.h>
 #include <TimeLib.h>
+#include <string.h>
+#include <stdio.h>
 
 
 #define WIFI_HOSTNAME "home-bedroom-client"
 
 #define     TOPIC_LIAMROOMTRIP          "/node/liamsroom/trip"
 #define     TOPIC_TIMESTAMP             "/dev/timestamp"
-#define     TOPIC_COMMAND               "/device/bedside-client-command"
+#define     TOPIC_COMMAND               "/bedroom/bedside-client/command"
 
 #define     DISPLAY_TIME    '1'
 #define     CLEAR_TIME      '2'
@@ -19,11 +22,21 @@
 #define     CLK         D4       // 0 (-01)
 #define     DIO         D5       // 2 (-01)
 
+/* ----------------------------------------------------------------------------- */
 
 MyWifiHelper wifiHelper(WIFI_HOSTNAME);
 
 SevenSegmentExtended sevenSeg(CLK, DIO);
 // http://playground.arduino.cc/Main/SevenSegmentLibrary
+
+#define NUM_PIXELS  1
+#define PIXEL_PIN   D6  // S3 on NodeMCU
+Adafruit_NeoPixel pixel = Adafruit_NeoPixel(NUM_PIXELS, PIXEL_PIN, NEO_GRB + NEO_KHZ800);
+
+uint32_t    COLOUR_OFF = pixel.Color(0, 0, 0);
+uint32_t    currentPixelColor = pixel.Color(0, 1, 0);
+
+/* ----------------------------------------------------------------------------- */
 
 void mqttcallback_Timestamp(byte *payload, unsigned int length) {
     unsigned long pctime = strtoul((char *)payload, NULL, 10);
@@ -43,10 +56,6 @@ void mqttcallback_DisplayTime(byte *payload, unsigned int length) {
     else {
         Serial.print("/node/liamsroom/trip: "); Serial.println(payload[0]);
     }
-    //***pixel.begin();
-    //***pixel.setPixelColor(0, COLOUR_OFF);
-   //***pixel.show();
-
 }
 
 void mqttcallback_Command(byte *payload, unsigned int length) {
@@ -62,17 +71,38 @@ void mqttcallback_Command(byte *payload, unsigned int length) {
     const char* command = root["command"];
     const char* value = root["value"];
 
-    root.printTo(Serial);
+    // root.printTo(Serial);
 
-    Serial.print("command: "); Serial.println(command);
-    Serial.print("value: "); Serial.println(value);
+    // Serial.print("command: "); Serial.println(command);
+    // Serial.print("value: "); Serial.println(value);
+
+    if (strcmp(command, "PIXEL") == 0) {
+
+        const char d[2] = ",";
+        char* colors = strtok((char*)value, d);
+        char* red = colors;
+        colors = strtok(NULL, d);
+        char* grn = colors;
+        colors = strtok(NULL, d);
+        char* blu = colors;
+
+        currentPixelColor = pixel.Color(atoi(red), atoi(grn), atoi(blu));
+        pixel.setPixelColor(0, currentPixelColor);
+        pixel.show();
+    }
 }
+
+/* ----------------------------------------------------------------------------- */
 
 void setup() {
 
     Serial.begin(9600);
     delay(200);
     Serial.println("Booting");
+
+    pixel.begin();
+    pixel.setPixelColor(0, currentPixelColor);
+    pixel.show();
 
     wifiHelper.setupWifi();
     wifiHelper.setupOTA(WIFI_HOSTNAME);
